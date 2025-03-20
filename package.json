@@ -1,0 +1,26 @@
+{
+  "name": "secret-js-script",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "6.14.0",
+    "@typescript-eslint/parser": "6.14.0",
+    "eslint": "8.55.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-import-resolver-typescript": "3.6.1",
+    "typescript": "^4.6.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "eslint-plugin-import": "^2.31.0",
+    "secretjs": "^1.15.0"
+  }
+}
