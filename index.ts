@@ -37,7 +37,7 @@ async function main() {
     const initialState: string[] = [];
     fs.writeFileSync('./notified.txt', JSON.stringify(initialState));
   }
-  const hasNotified = fs.readFileSync('./notified.txt', 'utf-8');
+  const hasNotified = JSON.parse(fs.readFileSync('./notified.txt', 'utf-8'));
   const transactions = fs.readFileSync('../transactions.txt', 'utf-8').split('\n').map(
     (tx) =>  {
       const txArray = tx.split(',');
@@ -54,10 +54,18 @@ async function main() {
   }
 
   const txActions: { token:string; amount: string; type: string}[] = [];
+  const failedTxs: { type: string; hash: string }[] = [];
   for (let i = 0; i < transactions.length; i++) {
     await delay(5000); // 1 second delay between calls
     const tx = transactions[i];
     const response = await client.query.getTx(tx.hash);
+    if(response === null || response === undefined) {
+      continue;
+    }
+    if(response?.code !== 0) {
+      failedTxs.push(tx);
+      continue;
+    }
     if(response?.jsonLog && tx.type === Type.PRIVATE) {
       const event = response.jsonLog[0].events.find((log) => log.type === 'wasm');
       const token = event?.attributes.find(
@@ -111,6 +119,48 @@ async function main() {
       }
     }
   }
+
+  if(failedTxs.length > 0) {
+    let message = '';
+    
+    Object.values(Type).forEach((type) => {
+      const typeFailed = failedTxs.filter((tx) => tx.type === type);
+      if (typeFailed.length > 0) {
+        message += `${type}: ${typeFailed.length} failed transactions\n`;
+      }
+    });
+
+    const notificationPayload = {
+        message: message,
+        title: 'Failed Transaction Alert',
+        priority: 0
+    };
+
+
+    try {
+      const response = await fetch(`https://api.pushover.net/1/messages.json`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', },
+          body: JSON.stringify({
+              ...notificationPayload,
+              token: process.env.PUSHOVER_TOKEN,
+              user: process.env.PUSHOVER_USER,
+          })
+      });
+
+      if (!response.ok) {
+          console.error('Notification Error:', await response.text());
+      }
+    } catch (err) {
+      console.error('Failed to send notification:', err);
+    }
+
+    failedTxs.forEach(tx => hasNotified.push(tx.hash));
+    if(txActions.length === 0) {
+      fs.writeFileSync('./notified.txt', JSON.stringify(hasNotified));
+    }
+  }
+
   if(txActions.length === 0) {
     return;
   }
@@ -218,9 +268,8 @@ async function main() {
     }
   }
 
-  const notifiedTransactions = JSON.parse(hasNotified);
-  transactions.forEach(tx => notifiedTransactions.push(tx.hash));
-  fs.writeFileSync('./notified.txt', JSON.stringify(notifiedTransactions));
+  transactions.forEach(tx => hasNotified.push(tx.hash));
+  fs.writeFileSync('./notified.txt', JSON.stringify(hasNotified));
 }
 
 main().catch(console.error);
