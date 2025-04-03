@@ -49,6 +49,9 @@ async function main() {
     }
   ).filter((tx) => tx.hash && !hasNotified.includes(tx.hash));
 
+    const response2 = await client.query.getTx('E7BD0388ED0475578ABCEC29F1F807C78C777D5E79B9019127002FDC30BED3C3');
+    console.log(JSON.stringify(response2, null, 2))
+
   if (transactions.length === 0) {
     return;
   }
@@ -100,16 +103,16 @@ async function main() {
         }
       }
     } else if (response?.jsonLog && tx.type === Type.XTOKEN) {
-      const event0 = response.jsonLog[0].events.find((log) => log.type === 'wasm');
       const event1 = response.jsonLog[1].events.find((log) => log.type === 'wasm');
-      const token = event0?.attributes.find((attr) => attr.key.trim() === 'token')?.value 
-        ?? event1?.attributes.find((attr) => attr.key.trim() === 'token')?.value;
-      const inputAmount = event0?.attributes.find((attr) => attr.key.trim() === 'amount_in')?.value
-          ?? event0?.attributes.find((attr) => attr.key.trim() === 'token_deposited')?.value;
-      const outputAmount = event1?.attributes.find(
+      const event2 = response.jsonLog[2].events.find((log) => log.type === 'wasm');
+      const token = event1?.attributes.find((attr) => attr.key.trim() === 'token')?.value 
+        ?? event2?.attributes.find((attr) => attr.key.trim() === 'token')?.value;
+      const inputAmount = event1?.attributes.find((attr) => attr.key.trim() === 'amount_in')?.value
+          ?? event1?.attributes.find((attr) => attr.key.trim() === 'token_deposited')?.value;
+      const outputAmount = event2?.attributes.find(
           (attr) => attr.key.trim() === 'token_withdraw_amount'
         )?.value
-          ?? event1?.attributes.find((attr) => attr.key.trim() === 'amount_out')?.value;
+          ?? event2?.attributes.find((attr) => attr.key.trim() === 'amount_out')?.value;
       if(token && inputAmount && outputAmount) {
         txActions.push({
           token,
