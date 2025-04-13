@@ -8,6 +8,10 @@ enum Type {
   PRIVATE = 'private',
   SILK = 'silk',
   XTOKEN = 'xToken',
+  EARN_DEPOSIT = 'earnDeposit',
+  EARN_CLAIM = 'earnClaim',
+  EARN_SWAP = 'earnSwap',
+  DEBT_REPAYER = 'debtRepayer',
 }
 
 interface GraphQLResponse<T> {
@@ -41,16 +45,18 @@ async function main() {
   const transactions = fs.readFileSync('../transactions.txt', 'utf-8').split('\n').map(
     (tx) =>  {
       const txArray = tx.split(',');
+      let flex;
+      if(txArray.length > 3) {
+        flex = txArray[3];
+      }
       return {
         time: new Date(Number(txArray[0]) * 10),
         hash: txArray[1],
         type: txArray[2] as Type,
+        flex,
       }
     }
   ).filter((tx) => tx.hash && !hasNotified.includes(tx.hash));
-
-    const response2 = await client.query.getTx('E7BD0388ED0475578ABCEC29F1F807C78C777D5E79B9019127002FDC30BED3C3');
-    console.log(JSON.stringify(response2, null, 2))
 
   if (transactions.length === 0) {
     return;
@@ -86,12 +92,20 @@ async function main() {
       }
     } else if (response?.jsonLog && tx.type === Type.SILK) {
       const event = response.jsonLog[0].events.find((log) => log.type === 'wasm');
-      const amountIndex = event?.attributes.map(
+      let amountIndex = event?.attributes.map(
         (attr) => attr.key.trim()
       ).indexOf('liquidator_share');
+      if(amountIndex === undefined || amountIndex === -1) {
+        const spEvent = response.jsonLog[2]?.events?.find((log) => log.type === 'wasm');
+        amountIndex = spEvent?.attributes.map(
+          (attr) => attr.key.trim()
+        ).indexOf('liquidator_share_amount');
+      }
       if(amountIndex !== undefined && amountIndex !== -1) {
         const token = event?.attributes.find((attr, index) => {
-          return attr.key.trim() === 'contract_address' && index > amountIndex;
+            return attr.key.trim() === 'contract_address' 
+              && typeof amountIndex === 'number' 
+              && index > amountIndex;
         })?.value;
         const amount = event?.attributes[amountIndex]?.value;
         if(token && amount) {
@@ -117,6 +131,15 @@ async function main() {
         txActions.push({
           token,
           amount: String(Number(outputAmount) - Number(inputAmount)),
+          type: tx.type
+        });
+      }
+    } else if (response?.jsonLog && tx.type === Type.EARN_DEPOSIT) {
+      const hrAmount = tx.flex;
+      if(hrAmount) {
+        txActions.push({
+          token: "secret1fl449muk5yq8dlad7a22nje4p5d2pnsgymhjfd",
+          amount: (Number(hrAmount) * 10 ** 6).toFixed(0),
           type: tx.type
         });
       }
