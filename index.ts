@@ -12,6 +12,7 @@ enum Type {
   EARN_CLAIM = 'earnClaim',
   EARN_SWAP = 'earnSwap',
   DEBT_REPAYER = 'debtRepayer',
+  PROTRA = 'dexArb',
 }
 
 interface GraphQLResponse<T> {
@@ -62,6 +63,8 @@ async function main() {
     return;
   }
 
+  let silkLiquidationDeposit = undefined;
+
   const txActions: { token:string; amount: string; type: string}[] = [];
   const failedTxs: { type: string; hash: string }[] = [];
   for (let i = 0; i < transactions.length; i++) {
@@ -91,6 +94,7 @@ async function main() {
         });
       }
     } else if (response?.jsonLog && tx.type === Type.SILK) {
+      silkLiquidationDeposit = Number(tx.flex);
       const event = response.jsonLog[0].events.find((log) => log.type === 'wasm');
       let amountIndex = event?.attributes.map(
         (attr) => attr.key.trim()
@@ -135,11 +139,28 @@ async function main() {
         });
       }
     } else if (response?.jsonLog && tx.type === Type.EARN_DEPOSIT) {
-      const hrAmount = tx.flex;
+      let hrAmount = (Number(tx.flex) * 10 ** 6);
+      if(silkLiquidationDeposit && hrAmount > silkLiquidationDeposit) {
+        hrAmount = hrAmount - silkLiquidationDeposit;
+      }
       if(hrAmount) {
         txActions.push({
           token: "secret1fl449muk5yq8dlad7a22nje4p5d2pnsgymhjfd",
-          amount: (Number(hrAmount) * 10 ** 6).toFixed(0),
+          amount: hrAmount.toFixed(0),
+          type: tx.type
+        });
+      }
+    } else if (response?.jsonLog && tx.type === Type.PROTRA) {
+      const event = response.jsonLog[1].events.find((log) => log.type === 'wasm');
+      const token = event?.attributes.find((attr) => attr.key.trim() === 'token_in_key')?.value;
+      const inputAmount = event?.attributes.find((attr) => attr.key.trim() === 'amount_in')?.value;
+      const outputAmount = event?.attributes.reverse().find(
+          (attr) => attr.key.trim() === 'amount_out'
+        )?.value;
+      if(token && inputAmount && outputAmount) {
+        txActions.push({
+          token,
+          amount: String(Number(outputAmount) - Number(inputAmount)),
           type: tx.type
         });
       }
