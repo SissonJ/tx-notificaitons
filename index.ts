@@ -95,15 +95,20 @@ async function main() {
       }
     } else if (response?.jsonLog && tx.type === Type.SILK) {
       silkLiquidationDeposit = Number(tx.flex);
-      const event = response.jsonLog[0].events.find((log) => log.type === 'wasm');
+      let event = response.jsonLog[0].events.find((log) => log.type === 'wasm');
       let amountIndex = event?.attributes.map(
         (attr) => attr.key.trim()
       ).indexOf('liquidator_share');
       if(amountIndex === undefined || amountIndex === -1) {
-        const spEvent = response.jsonLog[2]?.events?.find((log) => log.type === 'wasm');
-        amountIndex = spEvent?.attributes.map(
+        event = response.jsonLog[2]?.events?.find((log) => log.type === 'wasm');
+        amountIndex = event?.attributes.map(
           (attr) => attr.key.trim()
         ).indexOf('liquidator_share_amount');
+        if(amountIndex === -1) {
+          amountIndex = event?.attributes.map(
+            (attr) => attr.key.trim()
+          ).indexOf('liquidator_share');
+        }
       }
       if(amountIndex !== undefined && amountIndex !== -1) {
         const token = event?.attributes.find((attr, index) => {
