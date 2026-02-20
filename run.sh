@@ -1,4 +1,4 @@
 #!/bin/bash
 
 cd /root/tx-notificaitons
-ts-node --esm ./index.ts
+tsx ./index.ts

@@ -13,6 +13,9 @@ enum Type {
   EARN_SWAP = 'earnSwap',
   DEBT_REPAYER = 'debtRepayer',
   PROTRA = 'dexArb',
+  PROTRA2 = 'dexArb2',
+  PROTRA3 = 'dexArb3',
+  LEND_MANAGER = 'mintSilk',
 }
 
 interface GraphQLResponse<T> {
@@ -66,7 +69,7 @@ async function main() {
   let silkLiquidationDeposit = undefined;
 
   const txActions: { token:string; amount: string; type: string}[] = [];
-  const failedTxs: { type: string; hash: string }[] = [];
+  const failedTxs: { type: string; hash: string; rawLog: string }[] = [];
   for (let i = 0; i < transactions.length; i++) {
     await delay(5000); // 1 second delay between calls
     const tx = transactions[i];
@@ -75,7 +78,10 @@ async function main() {
       continue;
     }
     if(response?.code !== 0) {
-      failedTxs.push(tx);
+      failedTxs.push({
+        ...tx,
+        rawLog: response.rawLog,
+      });
       continue;
     }
     if(response?.jsonLog && tx.type === Type.PRIVATE) {
@@ -155,7 +161,9 @@ async function main() {
           type: tx.type
         });
       }
-    } else if (response?.jsonLog && tx.type === Type.PROTRA) {
+    } else if (response?.jsonLog 
+     && (Type.PROTRA === tx.type || Type.PROTRA2 === tx.type || Type.PROTRA3 === tx.type)
+    ) {
       const event = response.jsonLog[1].events.find((log) => log.type === 'wasm');
       const token = event?.attributes.find((attr) => attr.key.trim() === 'token_in_key')?.value;
       const inputAmount = event?.attributes.find((attr) => attr.key.trim() === 'amount_in')?.value;
@@ -169,6 +177,12 @@ async function main() {
           type: tx.type
         });
       }
+    } else if (response?.jsonLog && Type.LEND_MANAGER === tx.type) {
+        txActions.push({
+          token: "secret1fl449muk5yq8dlad7a22nje4p5d2pnsgymhjfd",
+          amount: "0",
+          type: tx.type
+        });
     }
   }
 
@@ -179,6 +193,12 @@ async function main() {
       const typeFailed = failedTxs.filter((tx) => tx.type === type);
       if (typeFailed.length > 0) {
         message += `${type}: ${typeFailed.length} failed transactions\n`;
+      }
+    });
+
+    failedTxs.forEach((ftx) => {
+      if(!ftx.rawLog.includes('dispatch: submessages')) {
+        message += `${ftx.rawLog}\n`;
       }
     });
 
