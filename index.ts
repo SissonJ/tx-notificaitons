@@ -41,6 +41,7 @@ const client = new SecretNetworkClient({
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function main() {
+  console.log('HERE');
   if (!fs.existsSync('./notified.txt')) {
     const initialState: string[] = [];
     fs.writeFileSync('./notified.txt', JSON.stringify(initialState));
@@ -345,3 +346,4 @@ async function main() {
 }
 
 main().catch(console.error);
+console.log('HERE');
